@@ -53,6 +53,7 @@ if (USE_IRESEARCH)
     IResearch/IResearchQueryJoin-test.cpp
     IResearch/IResearchQueryAggregate-test.cpp
     IResearch/IResearchQueryTraversal-test.cpp
+    IResearch/IResearchQueryOptions-test.cpp
     IResearch/RestHandlerMock.cpp
     IResearch/StorageEngineMock.cpp
     IResearch/IResearchViewNode-test.cpp
@@ -91,6 +92,8 @@ set(ARANGODB_TESTS_SOURCES
   Aql/ExecutionBlockImplTest.cpp
   Aql/ExecutionBlockImplTestInstances.cpp
   Aql/FilterExecutorTest.cpp
+  Aql/IdExecutorTest.cpp
+  Aql/NoResultsExecutorTest.cpp
   Aql/RestAqlHandlerTest.cpp
   Aql/ReturnExecutorTest.cpp
   Aql/SingleRowFetcherTest.cpp
@@ -100,8 +103,8 @@ set(ARANGODB_TESTS_SOURCES
   Aql/VelocyPackHelper.cpp
   Aql/WaitingExecutionBlockMock.cpp
   Auth/UserManagerTest.cpp
-  Basics/icu-helper.cpp
   Basics/ApplicationServerTest.cpp
+  Basics/icu-helper.cpp
   Basics/AttributeNameParserTest.cpp
   Basics/associative-multi-pointer-test.cpp
   Basics/associative-multi-pointer-nohashcache-test.cpp
