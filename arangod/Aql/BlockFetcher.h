@@ -64,11 +64,10 @@ class BlockFetcher {
    * after construction, and to allow derived subclasses for testing (read
    * BlockFetcherMock) to create them *after* the parent class was constructed.
    */
-  BlockFetcher(
-      std::vector<ExecutionBlock*> const& dependencies,
-      AqlItemBlockManager& itemBlockManager,
-      std::shared_ptr<const std::unordered_set<RegisterId>> inputRegisters,
-      RegisterId nrInputRegisters)
+  BlockFetcher(std::vector<ExecutionBlock*> const& dependencies,
+               AqlItemBlockManager& itemBlockManager,
+               std::shared_ptr<const std::unordered_set<RegisterId>> inputRegisters,
+               RegisterId nrInputRegisters)
       : _dependencies(dependencies),
         _itemBlockManager(itemBlockManager),
         _inputRegisters(std::move(inputRegisters)),
@@ -77,8 +76,10 @@ class BlockFetcher {
   TEST_VIRTUAL ~BlockFetcher() = default;
 
   TEST_VIRTUAL
-  std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>>
-  fetchBlock();
+  std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> fetchBlock();
+
+  TEST_VIRTUAL
+  std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> fetchBlockOfDependency(size_t dependencyIndex);
 
   TEST_VIRTUAL inline RegisterId getNrInputRegisters() const {
     return _nrInputRegisters;

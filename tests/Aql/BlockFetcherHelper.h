@@ -44,14 +44,14 @@ namespace aql {
 class AqlItemBlock;
 class InputAqlItemRow;
 class AqlItemMatrix;
-}
+}  // namespace aql
 
 namespace tests {
 namespace aql {
 
 /**
-* @brief Mock for SingleRowFetcher
-*/
+ * @brief Mock for SingleRowFetcher
+ */
 class SingleRowFetcherHelper : public ::arangodb::aql::SingleRowFetcher {
  public:
   SingleRowFetcherHelper(std::shared_ptr<arangodb::velocypack::Buffer<uint8_t>> vPackBuffer,
@@ -59,7 +59,7 @@ class SingleRowFetcherHelper : public ::arangodb::aql::SingleRowFetcher {
   virtual ~SingleRowFetcherHelper();
 
   std::pair<::arangodb::aql::ExecutionState, ::arangodb::aql::InputAqlItemRow> fetchRow() override;
-  uint64_t nrCalled(){ return _nrCalled; }
+  uint64_t nrCalled() { return _nrCalled; }
 
   uint64_t nrCalled() const { return _nrCalled; }
 
@@ -80,18 +80,58 @@ class SingleRowFetcherHelper : public ::arangodb::aql::SingleRowFetcher {
 };
 
 /**
-* @brief Mock for AllRowsFetcher
-*/
+ * @brief Mock for SingleRowFetcher with Multiple dependencies
+ */
+class SingleRowFetcherMultiDepHelper : public ::arangodb::aql::SingleRowFetcher {
+ public:
+  SingleRowFetcherMultiDepHelper(std::vector<std::shared_ptr<arangodb::velocypack::Buffer<uint8_t>>> vPackBufferList,
+                                 bool returnsWaiting);
+  virtual ~SingleRowFetcherMultiDepHelper();
+
+  std::pair<::arangodb::aql::ExecutionState, ::arangodb::aql::InputAqlItemRow> fetchRowForDependency(
+      size_t depIndex) override;
+  uint64_t nrCalled(size_t depIndex) {
+    TRI_ASSERT(depIndex < _dependencies.size());
+    return _dependencies[depIndex]._nrCalled;
+  }
+
+  uint64_t nrCalled(size_t depIndex) const {
+    TRI_ASSERT(depIndex < _dependencies.size());
+    return _dependencies[depIndex]._nrCalled;
+  }
+
+  bool isDone(size_t depIndex) const {
+    TRI_ASSERT(depIndex < _dependencies.size());
+    return _dependencies[depIndex]._returnedDone;
+  }
+
+ private:
+  struct BlockInfo {
+    std::shared_ptr<arangodb::velocypack::Buffer<uint8_t>> _vPackBuffer;
+    arangodb::velocypack::Slice _data;
+    bool _returnedDone;
+    uint64_t _nrItems;
+    uint64_t _nrCalled;
+    bool _didWait;
+    std::shared_ptr<arangodb::aql::InputAqlItemBlockShell> _itemBlock;
+    arangodb::aql::InputAqlItemRow _lastReturnedRow;
+  };
+  std::vector<BlockInfo> _dependencies;
+  bool _returnsWaiting;
+  arangodb::aql::ResourceMonitor _resourceMonitor;
+  arangodb::aql::AqlItemBlockManager _itemBlockManager;
+};
+
+/**
+ * @brief Mock for AllRowsFetcher
+ */
 class AllRowsFetcherHelper : public ::arangodb::aql::AllRowsFetcher {
  public:
-  AllRowsFetcherHelper(
-      std::shared_ptr<arangodb::velocypack::Buffer<uint8_t>> vPackBuffer,
-      bool returnsWaiting);
+  AllRowsFetcherHelper(std::shared_ptr<arangodb::velocypack::Buffer<uint8_t>> vPackBuffer,
+                       bool returnsWaiting);
   ~AllRowsFetcherHelper();
 
-  std::pair<::arangodb::aql::ExecutionState,
-            ::arangodb::aql::AqlItemMatrix const*>
-  fetchAllRows() override;
+  std::pair<::arangodb::aql::ExecutionState, ::arangodb::aql::AqlItemMatrix const*> fetchAllRows() override;
 
  private:
   std::shared_ptr<arangodb::velocypack::Buffer<uint8_t>> _vPackBuffer;
@@ -106,9 +146,8 @@ class AllRowsFetcherHelper : public ::arangodb::aql::AllRowsFetcher {
   std::unique_ptr<arangodb::aql::AqlItemMatrix> _matrix;
 };
 
-
-} // aql
-} // tests
-} // arangodb
+}  // namespace aql
+}  // namespace tests
+}  // namespace arangodb
 
 #endif

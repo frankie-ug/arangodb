@@ -24,15 +24,29 @@
 
 using namespace arangodb::aql;
 
-std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>>
-BlockFetcher::fetchBlock() {
+std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> BlockFetcher::fetchBlock() {
   ExecutionState state;
   std::unique_ptr<AqlItemBlock> block;
-  std::tie(state, block) =
-      upstreamBlock().getSome(ExecutionBlock::DefaultBatchSize());
+  std::tie(state, block) = upstreamBlock().getSome(ExecutionBlock::DefaultBatchSize());
   if (block != nullptr) {
-    auto shell = std::make_shared<InputAqlItemBlockShell>(
-        itemBlockManager(), std::move(block), _inputRegisters);
+    auto shell = std::make_shared<InputAqlItemBlockShell>(itemBlockManager(),
+                                                          std::move(block), _inputRegisters);
+    return {state, shell};
+  } else {
+    return {state, nullptr};
+  }
+}
+
+std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> BlockFetcher::fetchBlockOfDependency(
+    size_t dependencyIndex) {
+  ExecutionState state;
+  std::unique_ptr<AqlItemBlock> block;
+  TRI_ASSERT(dependencyIndex < _dependencies.size());
+  std::tie(state, block) =
+      _dependencies[dependencyIndex]->getSome(ExecutionBlock::DefaultBatchSize());
+  if (block != nullptr) {
+    auto shell = std::make_shared<InputAqlItemBlockShell>(itemBlockManager(),
+                                                          std::move(block), _inputRegisters);
     return {state, shell};
   } else {
     return {state, nullptr};

@@ -29,11 +29,11 @@
 #include "catch.hpp"
 
 #include "Aql/AqlItemBlock.h"
-#include "Aql/InputAqlItemRow.h"
 #include "Aql/BlockFetcher.h"
 #include "Aql/ExecutionBlock.h"
 #include "Aql/ExecutorInfos.h"
 #include "Aql/FilterExecutor.h"
+#include "Aql/InputAqlItemRow.h"
 #include "Aql/ResourceUsage.h"
 #include "Aql/SingleRowFetcher.h"
 
@@ -70,7 +70,7 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
           REQUIRE(state == ExecutionState::DONE);
           REQUIRE(!row);
         }
-      } // testee is destroyed here
+      }  // testee is destroyed here
       // testee must be destroyed before verify, because it may call returnBlock
       // in the destructor
       REQUIRE(blockFetcherMock.allBlocksFetched());
@@ -95,7 +95,7 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
             REQUIRE(!row);
           }
         }
-      } // testee is destroyed here
+      }  // testee is destroyed here
       // testee must be destroyed before verify, because it may call returnBlock
       // in the destructor
       REQUIRE(blockFetcherMock.allBlocksFetched());
@@ -123,7 +123,7 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
           REQUIRE(row.getNrRegisters() == 1);
           REQUIRE(row.getValue(0).slice().getInt() == 42);
         }
-      } // testee is destroyed here
+      }  // testee is destroyed here
       // testee must be destroyed before verify, because it may call returnBlock
       // in the destructor
       REQUIRE(blockFetcherMock.allBlocksFetched());
@@ -150,7 +150,7 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
             REQUIRE(!row);
           }
         }
-      } // testee is destroyed here
+      }  // testee is destroyed here
       // testee must be destroyed before verify, because it may call returnBlock
       // in the destructor
       REQUIRE(blockFetcherMock.allBlocksFetched());
@@ -177,7 +177,7 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
             REQUIRE(row.getValue(0).slice().getInt() == 42);
           }
         }
-      } // testee is destroyed here
+      }  // testee is destroyed here
       // testee must be destroyed before verify, because it may call returnBlock
       // in the destructor
       REQUIRE(blockFetcherMock.allBlocksFetched());
@@ -211,7 +211,7 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
             }
           }
         }
-      } // testee is destroyed here
+      }  // testee is destroyed here
       // testee must be destroyed before verify, because it may call returnBlock
       // in the destructor
       REQUIRE(blockFetcherMock.allBlocksFetched());
@@ -226,15 +226,15 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
     BlockFetcherMock blockFetcherMock{monitor, 1};
 
     // three 1-column matrices with 3, 2 and 1 rows, respectively
-    std::unique_ptr<AqlItemBlock> block1 = buildBlock<1>(&monitor, {{{1}}, {{2}}, {{3}}}),
+    std::unique_ptr<AqlItemBlock> block1 =
+                                      buildBlock<1>(&monitor, {{{1}}, {{2}}, {{3}}}),
                                   block2 = buildBlock<1>(&monitor, {{{4}}, {{5}}}),
                                   block3 = buildBlock<1>(&monitor, {{{6}}});
 
-
     WHEN("the producer does not wait") {
       blockFetcherMock.shouldReturn(ExecutionState::HASMORE, std::move(block1))
-                      .andThenReturn(ExecutionState::HASMORE, std::move(block2))
-                      .andThenReturn(ExecutionState::DONE, std::move(block3));
+          .andThenReturn(ExecutionState::HASMORE, std::move(block2))
+          .andThenReturn(ExecutionState::DONE, std::move(block3));
 
       {
         SingleRowFetcher testee(blockFetcherMock);
@@ -255,7 +255,7 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
           REQUIRE(row.getNrRegisters() == 1);
           REQUIRE(row.getValue(0).slice().getInt() == rowIdxAndValue);
         }
-      } // testee is destroyed here
+      }  // testee is destroyed here
       // testee must be destroyed before verify, because it may call returnBlock
       // in the destructor
       REQUIRE(blockFetcherMock.allBlocksFetched());
@@ -300,7 +300,7 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
           REQUIRE(row.getNrRegisters() == 1);
           REQUIRE(row.getValue(0).slice().getInt() == rowIdxAndValue);
         }
-      } // testee is destroyed here
+      }  // testee is destroyed here
       // testee must be destroyed before verify, because it may call returnBlock
       // in the destructor
       REQUIRE(blockFetcherMock.allBlocksFetched());
@@ -309,13 +309,12 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
 
     WHEN("the producer waits and does not return DONE asap") {
       blockFetcherMock.shouldReturn(ExecutionState::WAITING, nullptr)
-                      .andThenReturn(ExecutionState::HASMORE, std::move(block1))
-                      .andThenReturn(ExecutionState::WAITING, nullptr)
-                      .andThenReturn(ExecutionState::HASMORE, std::move(block2))
-                      .andThenReturn(ExecutionState::WAITING, nullptr)
-                      .andThenReturn(ExecutionState::HASMORE, std::move(block3))
-                      .andThenReturn(ExecutionState::DONE, nullptr)
-      ;
+          .andThenReturn(ExecutionState::HASMORE, std::move(block1))
+          .andThenReturn(ExecutionState::WAITING, nullptr)
+          .andThenReturn(ExecutionState::HASMORE, std::move(block2))
+          .andThenReturn(ExecutionState::WAITING, nullptr)
+          .andThenReturn(ExecutionState::HASMORE, std::move(block3))
+          .andThenReturn(ExecutionState::DONE, nullptr);
 
       {
         SingleRowFetcher testee(blockFetcherMock);
@@ -338,7 +337,7 @@ SCENARIO("SingleRowFetcher", "[AQL][EXECUTOR][FETCHER]") {
           REQUIRE(state == ExecutionState::DONE);
           REQUIRE(!row);
         }
-      } // testee is destroyed here
+      }  // testee is destroyed here
       // testee must be destroyed before verify, because it may call returnBlock
       // in the destructor
       REQUIRE(blockFetcherMock.allBlocksFetched());
