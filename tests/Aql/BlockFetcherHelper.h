@@ -28,12 +28,14 @@
 
 #include "Aql/AllRowsFetcher.h"
 #include "Aql/AqlItemBlockManager.h"
+#include "Aql/ConstFetcher.h"
 #include "Aql/ExecutionState.h"
 #include "Aql/ResourceUsage.h"
 #include "Aql/SingleRowFetcher.h"
 
 #include <Basics/Common.h>
 #include <velocypack/Buffer.h>
+#include <velocypack/Builder.h>
 #include <velocypack/Slice.h>
 
 // TODO rename this file to RowFetcherHelper!
@@ -144,6 +146,21 @@ class AllRowsFetcherHelper : public ::arangodb::aql::AllRowsFetcher {
   arangodb::aql::ResourceMonitor _resourceMonitor;
   arangodb::aql::AqlItemBlockManager _itemBlockManager;
   std::unique_ptr<arangodb::aql::AqlItemMatrix> _matrix;
+};
+
+class ConstFetcherHelper : public arangodb::aql::ConstFetcher {
+ public:
+  ConstFetcherHelper(std::shared_ptr<arangodb::velocypack::Buffer<uint8_t>> vPackBuffer);
+  virtual ~ConstFetcherHelper();
+
+  std::pair<::arangodb::aql::ExecutionState, ::arangodb::aql::InputAqlItemRow> fetchRow() override;
+
+ private:
+  std::shared_ptr<arangodb::velocypack::Buffer<uint8_t>> _vPackBuffer;
+  arangodb::velocypack::Slice _data;
+  arangodb::aql::ResourceMonitor _resourceMonitor;
+  arangodb::aql::AqlItemBlockManager _itemBlockManager;
+  arangodb::aql::InputAqlItemRow _lastReturnedRow;
 };
 
 }  // namespace aql

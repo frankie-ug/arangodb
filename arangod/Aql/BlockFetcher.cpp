@@ -45,8 +45,11 @@ std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> BlockFetcher:
   std::tie(state, block) =
       _dependencies[dependencyIndex]->getSome(ExecutionBlock::DefaultBatchSize());
   if (block != nullptr) {
-    auto shell = std::make_shared<InputAqlItemBlockShell>(itemBlockManager(),
-                                                          std::move(block), _inputRegisters);
+    TRI_IF_FAILURE("ExecutionBlock::getBlock") {
+      THROW_ARANGO_EXCEPTION(TRI_ERROR_DEBUG);
+    }
+    auto shell = std::make_shared<InputAqlItemBlockShell>(
+        itemBlockManager(), std::move(block), _inputRegisters);
     return {state, shell};
   } else {
     return {state, nullptr};
