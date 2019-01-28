@@ -81,6 +81,9 @@ class ModificationExecutorInfos : public ExecutorInfos {
                             RegisterId nrInputRegisters,
                             RegisterId nrOutputRegisters,
                             std::unordered_set<RegisterId> registersToClear,
+                            transaction::Methods*,
+                            OperationOptions,
+                            aql::Collection const* _aqlCollection,
                             bool doCount, bool returnInheritedResults);
 
 
@@ -91,6 +94,9 @@ class ModificationExecutorInfos : public ExecutorInfos {
   ~ModificationExecutorInfos() = default;
 
   /// @brief the variable produced by Return
+  transaction::Methods* _trx;
+  OperationOptions _options;
+  aql::Collection const* _aqlCollection;
   Variable const* _inVariable;
   bool _count;
   RegisterId _inputRegisterId;

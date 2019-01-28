@@ -23,6 +23,7 @@
 #include "ModificationExecutor.h"
 #include "Aql/AqlValue.h"
 #include "Aql/OutputAqlItemRow.h"
+#include "Aql/Collection.h"
 #include "Basics/Common.h"
 
 #include <algorithm>
@@ -37,6 +38,9 @@ ModificationExecutorInfos::ModificationExecutorInfos(boost::optional<RegisterId>
                                                      RegisterId nrInputRegisters,
                                                      RegisterId nrOutputRegisters,
                                                      std::unordered_set<RegisterId> registersToClear,
+                                                     transaction::Methods* trx,
+                                                     OperationOptions options,
+                                                      aql::Collection const* aqlCollection,
                                                      bool doCount, bool returnInheritedResults)
     : ExecutorInfos(inputRegister.has_value() ? make_shared_unordered_set({inputRegister.get()}) : make_shared_unordered_set(),
                     make_shared_unordered_set({outputRegisterOld.get()}),
@@ -45,6 +49,9 @@ ModificationExecutorInfos::ModificationExecutorInfos(boost::optional<RegisterId>
                     std::unordered_set<RegisterId>{} /*to clear*/,  // std::move(registersToClear) // use this once register planning is fixed
                     std::unordered_set<RegisterId>{} /*to keep*/
                     ),
+      _trx(trx),
+      _options(options),
+      _aqlCollection(aqlCollection),
       _inputRegisterId(inputRegister.get()),
       _outputRegisterId(outputRegisterOld.get()),
       _doCount(doCount),
@@ -57,6 +64,7 @@ ModificationExecutorBase::ModificationExecutorBase(Fetcher& fetcher, Infos& info
 
 
 void Insert::work(ModificationExecutor<Insert>& executor) {
+    auto& infos = executor._infos;
 //  size_t const count = countBlocksRows();
 //
 //  if (count == 0) {
@@ -126,7 +134,8 @@ void Insert::work(ModificationExecutor<Insert>& executor) {
 //      continue;
 //    }
 //
-//    OperationResult opRes = _trx->insert(_collection->name(), toInsert, options);
+    VPackSlice toInsert;
+    OperationResult opRes = infos._trx->insert(infos._aqlCollection->name(), toInsert, infos._options);
 //
 //    handleBabyResult(opRes.countErrorCodes, static_cast<size_t>(toInsert.length()),
 //                     ep->_options.ignoreErrors);
