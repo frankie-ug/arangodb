@@ -37,7 +37,7 @@ std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> BlockFetcher:
   }
 }
 
-std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> BlockFetcher::fetchBlockOfDependency(
+std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> BlockFetcher::fetchBlockFromDependency(
     size_t dependencyIndex) {
   ExecutionState state;
   std::unique_ptr<AqlItemBlock> block;
@@ -48,8 +48,8 @@ std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> BlockFetcher:
     TRI_IF_FAILURE("ExecutionBlock::getBlock") {
       THROW_ARANGO_EXCEPTION(TRI_ERROR_DEBUG);
     }
-    auto shell = std::make_shared<InputAqlItemBlockShell>(
-        itemBlockManager(), std::move(block), _inputRegisters);
+    auto shell = std::make_shared<InputAqlItemBlockShell>(itemBlockManager(),
+                                                          std::move(block), _inputRegisters);
     return {state, shell};
   } else {
     return {state, nullptr};

@@ -79,11 +79,13 @@ class BlockFetcher {
   std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> fetchBlock();
 
   TEST_VIRTUAL
-  std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> fetchBlockOfDependency(size_t dependencyIndex);
+  std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> fetchBlockFromDependency(size_t dependencyIndex);
 
   TEST_VIRTUAL inline RegisterId getNrInputRegisters() const {
     return _nrInputRegisters;
   }
+
+  size_t numberDependencies() const { return _dependencies.size(); }
 
  protected:
   AqlItemBlockManager& itemBlockManager() { return _itemBlockManager; }

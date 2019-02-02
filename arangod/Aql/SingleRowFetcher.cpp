@@ -30,7 +30,6 @@
 #include "Aql/FilterExecutor.h"
 #include "SingleRowFetcher.h"
 
-
 using namespace arangodb;
 using namespace arangodb::aql;
 
@@ -71,13 +70,13 @@ std::pair<ExecutionState, InputAqlItemRow> SingleRowFetcher::fetchRow() {
   return {rowState, _currentRow};
 }
 
-SingleRowFetcher::SingleRowFetcher(BlockFetcher& executionBlock)
+SingleRowFetcher::SingleRowFetcher(BlockFetcher& executionBlock, size_t sourceDependency)
     : _blockFetcher(&executionBlock),
-      _currentRow{CreateInvalidInputRowHint{}} {}
+      _currentRow{CreateInvalidInputRowHint{}},
+      _sourceDependency(sourceDependency) {}
 
-std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>>
-SingleRowFetcher::fetchBlock() {
-  auto res = _blockFetcher->fetchBlock();
+std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> SingleRowFetcher::fetchBlock() {
+  auto res = _blockFetcher->fetchBlockFromDependency(_sourceDependency);
 
   _upstreamState = res.first;
 
@@ -101,7 +100,6 @@ size_t SingleRowFetcher::getRowIndex() {
   TRI_ASSERT(indexIsValid());
   return _rowIndex;
 }
-
 
 SingleRowFetcher::SingleRowFetcher()
     : _blockFetcher(nullptr), _currentRow{CreateInvalidInputRowHint{}} {}

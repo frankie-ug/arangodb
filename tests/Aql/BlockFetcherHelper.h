@@ -30,6 +30,7 @@
 #include "Aql/AqlItemBlockManager.h"
 #include "Aql/ConstFetcher.h"
 #include "Aql/ExecutionState.h"
+#include "Aql/MultiDependencySingleRowFetcher.h"
 #include "Aql/ResourceUsage.h"
 #include "Aql/SingleRowFetcher.h"
 
@@ -84,11 +85,13 @@ class SingleRowFetcherHelper : public ::arangodb::aql::SingleRowFetcher {
 /**
  * @brief Mock for SingleRowFetcher with Multiple dependencies
  */
-class SingleRowFetcherMultiDepHelper : public ::arangodb::aql::SingleRowFetcher {
+class MultiDependencySingleRowFetcherHelper
+    : public ::arangodb::aql::MultiDependencySingleRowFetcher {
  public:
-  SingleRowFetcherMultiDepHelper(std::vector<std::shared_ptr<arangodb::velocypack::Buffer<uint8_t>>> vPackBufferList,
-                                 bool returnsWaiting);
-  virtual ~SingleRowFetcherMultiDepHelper();
+  MultiDependencySingleRowFetcherHelper(
+      std::vector<std::shared_ptr<arangodb::velocypack::Buffer<uint8_t>>> vPackBufferList,
+      bool returnsWaiting);
+  virtual ~MultiDependencySingleRowFetcherHelper();
 
   std::pair<::arangodb::aql::ExecutionState, ::arangodb::aql::InputAqlItemRow> fetchRowForDependency(
       size_t depIndex) override;

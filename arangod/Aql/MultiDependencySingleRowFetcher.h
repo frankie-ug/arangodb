@@ -23,8 +23,8 @@
 /// @author Jan Christoph Uhde
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef ARANGOD_AQL_SINGLE_ROW_FETCHER_H
-#define ARANGOD_AQL_SINGLE_ROW_FETCHER_H
+#ifndef ARANGOD_AQL_MULTI_DEPENDENCY_SINGLE_ROW_FETCHER_H
+#define ARANGOD_AQL_MULTI_DEPENDENCY_SINGLE_ROW_FETCHER_H
 
 #include "Aql/ExecutionState.h"
 #include "Aql/InputAqlItemRow.h"
@@ -36,6 +36,7 @@ namespace aql {
 
 class AqlItemBlock;
 class BlockFetcher;
+class SingleRowFetcher;
 
 /**
  * @brief Interface for all AqlExecutors that do only need one
@@ -45,19 +46,14 @@ class BlockFetcher;
  *        this row stays valid until the next call
  *        of fetchRow.
  */
-class SingleRowFetcher {
+class MultiDependencySingleRowFetcher {
  public:
-  /**
-   * @brief Create a new Fetcher.
-   * @param executionBlock is the upstream where we get new AQLItemBlocks.
-   * @param sourceDependency is the index of dependency this Block should pull from.
-   */
-  explicit SingleRowFetcher(BlockFetcher& executionBlock, size_t sourceDependency = 0);
-  TEST_VIRTUAL ~SingleRowFetcher() = default;
+  explicit MultiDependencySingleRowFetcher(BlockFetcher& executionBlock);
+  TEST_VIRTUAL ~MultiDependencySingleRowFetcher() = default;
 
  protected:
   // only for testing! Does not initialize _blockFetcher!
-  SingleRowFetcher();
+  MultiDependencySingleRowFetcher();
 
  public:
   /**
@@ -77,67 +73,31 @@ class SingleRowFetcher {
    *           If HASMORE => The Row is guaranteed to not be a nullptr.
    *           If DONE => Row can be a nullptr (nothing received) or valid.
    */
-  TEST_VIRTUAL std::pair<ExecutionState, InputAqlItemRow> fetchRow();
+  TEST_VIRTUAL std::pair<ExecutionState, InputAqlItemRow> fetchRowForDependency(size_t depIndex);
 
  private:
   BlockFetcher* _blockFetcher;
 
   /**
-   * @brief Holds state returned by the last fetchBlock() call.
-   *        This is similar to ExecutionBlock::_upstreamState, but can also be
-   *        WAITING.
-   *        Part of the Fetcher, and may be moved if the Fetcher implementations
-   *        are moved into separate classes.
+   * @brief Holds the state for all dependencies.
    */
-  ExecutionState _upstreamState;
+  std::vector<SingleRowFetcher> _upstream;
 
   /**
-   * @brief Input block currently in use. Used for memory management by the
-   *        SingleRowFetcher. May be moved if the Fetcher implementations
-   *        are moved into separate classes.
+   * @brief Number of dependencies.
    */
-  std::shared_ptr<InputAqlItemBlockShell> _currentBlock;
-
-  /**
-   * @brief Index of the row to be returned next by fetchRow(). This is valid
-   *        iff _currentBlock != nullptr and it's smaller or equal than
-   *        _currentBlock->size(). May be moved if the Fetcher implementations
-   *        are moved into separate classes.
-   */
-  size_t _rowIndex;
-
-  /**
-   * @brief The current row, as returned last by fetchRow(). Must stay valid
-   *        until the next fetchRow() call.
-   */
-  InputAqlItemRow _currentRow;
-
-  /**
-   * @brief The index in the ExecutionBlock fetcher
-   *        this fetcher pulls data from.
-   *        In most cases this is 0. (one dependency)
-   */
-  size_t _sourceDependency;
+  size_t _nrDependencies;
 
  private:
-  /**
-   * @brief Delegates to ExecutionBlock::fetchBlock()
-   */
-  std::pair<ExecutionState, std::shared_ptr<InputAqlItemBlockShell>> fetchBlock();
-
   /**
    * @brief Delegates to ExecutionBlock::getNrInputRegisters()
    */
   RegisterId getNrInputRegisters() const;
 
-  bool indexIsValid();
-
-  bool isLastRowInBlock();
-
-  size_t getRowIndex();
+  SingleRowFetcher& getUpstream(size_t depIndex);
 };
 
 }  // namespace aql
 }  // namespace arangodb
 
-#endif  // ARANGOD_AQL_SINGLE_ROW_FETCHER_H
+#endif  // ARANGOD_AQL_MULTI_DEPENDENCY_SINGLE_ROW_FETCHER_H
