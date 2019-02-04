@@ -177,7 +177,6 @@ SET(ARANGOD_SOURCES
   Aql/AqlItemBlock.cpp
   Aql/AqlItemBlockManager.cpp
   Aql/AqlItemBlockShell.cpp
-  Aql/AqlItemMatrix.cpp
   Aql/AqlResult.cpp
   Aql/AqlTransaction.cpp
   Aql/AqlValue.cpp
@@ -205,7 +204,7 @@ SET(ARANGOD_SOURCES
   Aql/DocumentProducingNode.cpp
   Aql/EngineInfoContainerCoordinator.cpp
   Aql/EngineInfoContainerDBServer.cpp
-  Aql/EnumerateCollectionBlock.cpp
+  Aql/EnumerateCollectionExecutor.cpp
   Aql/EnumerateListExecutor.cpp
   Aql/ExecutionBlock.cpp
   Aql/ExecutionBlockImpl.cpp

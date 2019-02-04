@@ -107,8 +107,12 @@ class ModificationExecutorInfos : public ExecutorInfos {
 };
 
 struct ModificationExecutorBase {
+  struct Properties {
+    static const bool preservesOrder = true;
+    static const bool allowsBlockPassthrough = true;
+  };
   using Infos = ModificationExecutorInfos;
-  using Fetcher = SingleRowFetcher;
+  using Fetcher = SingleRowFetcher<Properties::allowsBlockPassthrough>;
 
   ModificationExecutorBase(Fetcher&, Infos&);
 
