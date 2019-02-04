@@ -216,7 +216,6 @@ SET(ARANGOD_SOURCES
   Aql/ExecutorInfos.cpp
   Aql/Expression.cpp
   Aql/FilterExecutor.cpp
-  Aql/LimitExecutor.cpp
   Aql/FixedVarExpressionContext.cpp
   Aql/Function.cpp
   Aql/Functions.cpp
@@ -226,6 +225,7 @@ SET(ARANGOD_SOURCES
   Aql/IndexBlock.cpp
   Aql/IndexNode.cpp
   Aql/InputAqlItemRow.cpp
+  Aql/LimitExecutor.cpp
   Aql/ModificationBlocks.cpp
   Aql/ModificationExecutor.cpp
   Aql/ModificationNodes.cpp
@@ -261,6 +261,7 @@ SET(ARANGOD_SOURCES
   Aql/ShortStringStorage.cpp
   Aql/ShortestPathBlock.cpp
   Aql/ShortestPathNode.cpp
+  Aql/SingleBlockFetcher.cpp
   Aql/SingleRowFetcher.cpp
   Aql/SortCondition.cpp
   Aql/SortExecutor.cpp

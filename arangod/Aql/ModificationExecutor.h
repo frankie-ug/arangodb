@@ -27,12 +27,12 @@
 #include "Aql/ExecutorInfos.h"
 #include "Aql/ModificationNodes.h"
 #include "Aql/ModificationOptions.h"
+#include "Aql/SingleBlockFetcher.h"
 #include "Aql/SingleRowFetcher.h"
 #include "Aql/Stats.h"
 #include "Utils/OperationOptions.h"
 #include "velocypack/Slice.h"
 #include "velocypack/velocypack-aliases.h"
-
 
 #include <boost/optional.hpp>
 
@@ -84,6 +84,7 @@ class ModificationExecutorInfos : public ExecutorInfos {
                             OperationOptions,
                             aql::Collection const* _aqlCollection,
                             bool producesResults,
+                            bool consultAqlWriteFilter,
                             bool doCount, bool returnInheritedResults);
 
 
@@ -98,6 +99,7 @@ class ModificationExecutorInfos : public ExecutorInfos {
   OperationOptions _options;
   aql::Collection const* _aqlCollection;
   bool _producesResults;
+  bool _consultAqlWriteFilter;
   Variable const* _inVariable;
   bool _count;
   RegisterId _inputRegisterId;
@@ -112,11 +114,10 @@ struct ModificationExecutorBase {
     static const bool allowsBlockPassthrough = true;
   };
   using Infos = ModificationExecutorInfos;
-  using Fetcher = SingleRowFetcher<Properties::allowsBlockPassthrough>;
+  using Fetcher = SingleBlockFetcher;//<Properties::allowsBlockPassthrough>;
 
   ModificationExecutorBase(Fetcher&, Infos&);
 
- protected:
   enum ModOperationType : uint8_t {
     IGNORE_SKIP = 0,    // do not apply, do not produce a result - used for
                         // skipping over suppressed errors
@@ -127,6 +128,7 @@ struct ModificationExecutorBase {
     APPLY_UPDATE = 3,  // apply it and return the result, used only used for UPSERT
     APPLY_INSERT = 4,  // apply it and return the result, used only used for UPSERT
   };
+ protected:
 
   ModificationExecutorInfos& _infos;
   Fetcher& _fetcher;
@@ -173,6 +175,8 @@ class ModificationExecutor : public ModificationExecutorBase {
    *         if something was written output.hasValue() == true
    */
   std::pair<ExecutionState, Stats> produceRow(OutputAqlItemRow& output);
+  std::vector<ModOperationType> _operations;
+  velocypack::Builder _tempBuilder;
 };
 
 struct Insert {
