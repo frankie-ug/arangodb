@@ -57,18 +57,17 @@ struct Upsert;
 struct Replace;
 
 OperationOptions convertOptions(Insert&, ModificationOptions const& in,
-                                ExecutionNode* outVariableOld) {
+                                ExecutionNode* outVariableNew,
+                                ExecutionNode* outVariableOld
+                                ) {
   OperationOptions out;
 
-  // insert node
-  // TO INFOS --  bool const ignoreDocumentNotFound = in.ignoreDocumentNotFound;
-  bool const producesOutput = outVariableOld != nullptr;
-
-  out.silent = !producesOutput;
   out.waitForSync = in.waitForSync;
   out.ignoreRevs = in.ignoreRevs;
-  out.returnOld = producesOutput;
   out.isRestore = in.useIsRestore;
+  out.returnNew = (outVariableNew != nullptr);
+  out.returnOld = (outVariableOld != nullptr);
+  out.silent = !(out.returnNew || out.returnOld);
 
   return out;
 }
@@ -84,6 +83,7 @@ class ModificationExecutorInfos : public ExecutorInfos {
                             transaction::Methods*,
                             OperationOptions,
                             aql::Collection const* _aqlCollection,
+                            bool producesResults,
                             bool doCount, bool returnInheritedResults);
 
 
@@ -97,6 +97,7 @@ class ModificationExecutorInfos : public ExecutorInfos {
   transaction::Methods* _trx;
   OperationOptions _options;
   aql::Collection const* _aqlCollection;
+  bool _producesResults;
   Variable const* _inVariable;
   bool _count;
   RegisterId _inputRegisterId;
@@ -172,6 +173,7 @@ class ModificationExecutor : public ModificationExecutorBase {
 
 struct Insert {
   void work(ModificationExecutor<Insert>& executor);
+  VPackBuilder _tempBuilder;
 };
 
 struct Remove {};

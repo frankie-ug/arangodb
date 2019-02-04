@@ -40,7 +40,8 @@ ModificationExecutorInfos::ModificationExecutorInfos(boost::optional<RegisterId>
                                                      std::unordered_set<RegisterId> registersToClear,
                                                      transaction::Methods* trx,
                                                      OperationOptions options,
-                                                      aql::Collection const* aqlCollection,
+                                                     aql::Collection const* aqlCollection,
+                                                     bool producesResults,
                                                      bool doCount, bool returnInheritedResults)
     : ExecutorInfos(inputRegister.has_value() ? make_shared_unordered_set({inputRegister.get()}) : make_shared_unordered_set(),
                     make_shared_unordered_set({outputRegisterOld.get()}),
@@ -52,6 +53,7 @@ ModificationExecutorInfos::ModificationExecutorInfos(boost::optional<RegisterId>
       _trx(trx),
       _options(options),
       _aqlCollection(aqlCollection),
+      _producesResults(producesResults || !_options.silent),
       _inputRegisterId(inputRegister.get()),
       _outputRegisterId(outputRegisterOld.get()),
       _doCount(doCount),
@@ -76,23 +78,13 @@ void Insert::work(ModificationExecutor<Insert>& executor) {
 //  TRI_ASSERT(it != ep->getRegisterPlan()->varInfo.end());
 //  RegisterId const registerId = it->second.registerId;
 //
-//  bool const producesNew = (ep->_outVariableNew != nullptr);
-//  bool const producesOld = (ep->_outVariableOld != nullptr);
-//  bool const producesOutput = producesNew || producesOld;
 //
-//  OperationOptions options;
-//  // use "silent" mode if we do not access the results later on
-//  options.silent = !producesOutput;
-//  options.returnNew = producesNew;
-//  options.returnOld = producesOld;
-//  options.isRestore = ep->_options.useIsRestore;
-//  options.waitForSync = ep->_options.waitForSync;
-//  options.overwrite = ep->_options.overwrite;
+
 //
-//  std::unique_ptr<AqlItemBlock> result;
-//  if (producesOutput || ep->producesResults()) {
+  std::unique_ptr<AqlItemBlock> result;
+  if (infos._producesResults) {
 //    result.reset(requestBlock(count, getNrOutputRegisters()));
-//  }
+  }
 //
 //  // loop over all blocks
 //  size_t dstRow = 0;
@@ -102,8 +94,8 @@ void Insert::work(ModificationExecutor<Insert>& executor) {
 //
 //    throwIfKilled();  // check if we were aborted
 //
-//    _tempBuilder.clear();
-//    _tempBuilder.openArray();
+    _tempBuilder.clear();
+    _tempBuilder.openArray();
 //
 //    size_t const n = res->size();
 //
@@ -117,16 +109,16 @@ void Insert::work(ModificationExecutor<Insert>& executor) {
 //          !_collection->getCollection()->skipForAqlWrite(a.slice(), StaticStrings::Empty)) {
 //        _operations.push_back(APPLY_RETURN);
 //        // TODO This may be optimized with externals
-//        _tempBuilder.add(a.slice());
+      //  _tempBuilder.add(a.slice());
 //      } else {
 //        // not relevant for ourselves... just pass it on to the next block
 //        _operations.push_back(IGNORE_RETURN);
 //      }
 //    }
 //
-//    _tempBuilder.close();
-//
-//    VPackSlice toInsert = _tempBuilder.slice();
+    _tempBuilder.close();
+
+    VPackSlice toInsert = _tempBuilder.slice();
 //
 //    if (skipEmptyValues(toInsert, n, res, result.get(), dstRow)) {
 //      it->release();
@@ -134,7 +126,6 @@ void Insert::work(ModificationExecutor<Insert>& executor) {
 //      continue;
 //    }
 //
-    VPackSlice toInsert;
     OperationResult opRes = infos._trx->insert(infos._aqlCollection->name(), toInsert, infos._options);
 //
 //    handleBabyResult(opRes.countErrorCodes, static_cast<size_t>(toInsert.length()),
