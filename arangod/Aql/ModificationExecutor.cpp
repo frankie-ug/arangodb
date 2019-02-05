@@ -22,8 +22,8 @@
 
 #include "ModificationExecutor.h"
 #include "Aql/AqlValue.h"
-#include "Aql/OutputAqlItemRow.h"
 #include "Aql/Collection.h"
+#include "Aql/OutputAqlItemRow.h"
 #include "Basics/Common.h"
 #include "VocBase/LogicalCollection.h"
 
@@ -32,24 +32,18 @@
 using namespace arangodb;
 using namespace arangodb::aql;
 
-
-ModificationExecutorInfos::ModificationExecutorInfos(boost::optional<RegisterId> inputRegister,
-                                                     boost::optional<RegisterId> outputRegisterNew,
-                                                     boost::optional<RegisterId> outputRegisterOld,
-                                                     RegisterId nrInputRegisters,
-                                                     RegisterId nrOutputRegisters,
-                                                     std::unordered_set<RegisterId> registersToClear,
-                                                     transaction::Methods* trx,
-                                                     OperationOptions options,
-                                                     aql::Collection const* aqlCollection,
-                                                     bool producesResults,
-                                                     bool consultAqlWriteFilter,
-                                                     bool doCount, bool returnInheritedResults)
-    : ExecutorInfos(inputRegister.has_value() ? make_shared_unordered_set({inputRegister.get()}) : make_shared_unordered_set(),
-                    make_shared_unordered_set({outputRegisterOld.get()}),
-                    nrInputRegisters,
-                    nrOutputRegisters,
-                    std::unordered_set<RegisterId>{} /*to clear*/,  // std::move(registersToClear) // use this once register planning is fixed
+ModificationExecutorInfos::ModificationExecutorInfos(
+    boost::optional<RegisterId> inputRegister, boost::optional<RegisterId> outputRegisterNew,
+    boost::optional<RegisterId> outputRegisterOld, RegisterId nrInputRegisters,
+    RegisterId nrOutputRegisters, std::unordered_set<RegisterId> registersToClear,
+    transaction::Methods* trx, OperationOptions options,
+    aql::Collection const* aqlCollection, bool producesResults,
+    bool consultAqlWriteFilter, bool doCount, bool returnInheritedResults)
+    : ExecutorInfos(inputRegister.has_value()
+                        ? make_shared_unordered_set({inputRegister.get()})
+                        : make_shared_unordered_set(),
+                    make_shared_unordered_set({outputRegisterOld.get()}), nrInputRegisters,
+                    nrOutputRegisters, std::unordered_set<RegisterId>{} /*to clear*/,  // std::move(registersToClear) // use this once register planning is fixed
                     std::unordered_set<RegisterId>{} /*to keep*/
                     ),
       _trx(trx),
@@ -62,58 +56,84 @@ ModificationExecutorInfos::ModificationExecutorInfos(boost::optional<RegisterId>
       _doCount(doCount),
       _returnInheritedResults(returnInheritedResults) {}
 
-
 ModificationExecutorBase::ModificationExecutorBase(Fetcher& fetcher, Infos& infos)
     : _infos(infos), _fetcher(fetcher){};
 
-
-void Insert::work(ModificationExecutor<Insert>& executor) {
+void Insert::prepareBlock(ModificationExecutor<Insert>& executor) {
   auto& infos = executor._infos;
 
   executor._operations.clear();
   executor._tempBuilder.clear();
   executor._tempBuilder.isOpenArray();
 
-  executor._fetcher.forRowinBlock([&executor, &infos](InputAqlItemRow&& row){
-      auto const& inVal = row.getValue(infos._inputRegisterId);
+  executor._fetcher.forRowinBlock([&executor, &infos](InputAqlItemRow&& row) {
+    auto const& inVal = row.getValue(infos._inputRegisterId);
 
-      if (!infos._consultAqlWriteFilter || infos._aqlCollection->getCollection()->skipForAqlWrite(inVal.slice(), StaticStrings::Empty)) {
-        executor._operations.push_back(ModificationExecutorBase::APPLY_RETURN);
-        // TODO This may be optimized with externals
-        executor._tempBuilder.add(inVal.slice());
-      } else {
-        // not relevant for ourselves... just pass it on to the next block
-        executor._operations.push_back(ModificationExecutorBase::IGNORE_RETURN);
-      }
-
+    if (!infos._consultAqlWriteFilter ||
+        infos._aqlCollection->getCollection()->skipForAqlWrite(inVal.slice(),
+                                                               StaticStrings::Empty)) {
+      executor._operations.push_back(ModificationExecutorBase::APPLY_RETURN);
+      // TODO This may be optimized with externals
+      executor._tempBuilder.add(inVal.slice());
+    } else {
+      // not relevant for ourselves... just pass it on to the next block
+      executor._operations.push_back(ModificationExecutorBase::IGNORE_RETURN);
+    }
   });
 
   executor._tempBuilder.close();
+  auto toInsert = executor._tempBuilder.slice();
 
+  TRI_ASSERT(toInsert.isArray());
 
+  // skip empty
+  // no more to prepare
+  if (toInsert.length() == 0) {
+    executor._copyBlock = true;
+    return;
+  }
+
+  // execute
+  OperationResult res =
+      executor._infos._trx->insert(executor._infos._aqlCollection->name(),
+                                   toInsert, executor._infos._options);
+
+  //handle stats
+  //handleBabyResult(opRes.countErrorCodes, static_cast<size_t>(toInsert.length()),
+  //                 ep->_options.ignoreErrors);
+
+  if (res.fail()) {
+    THROW_ARANGO_EXCEPTION(res.result);
+  }
+  executor._operationResult = std::move(res);
+  VPackSlice resultList = executor._operationResult.slice();
+
+  // skip empty
+  if (resultList.length() == 0) {
+    executor._copyBlock = true;
+    return;
+  }
 }
-
-
 
 /// @brief skips over the taken rows if the input value is no
 /// array or empty. updates dstRow in this case and returns true!
-bool ModificationExecutorBase::skipEmptyValues(VPackSlice const& values, size_t n,
-                                        AqlItemBlock const* src,
-                                        AqlItemBlock* dst, size_t& dstRow) {
-  //TRI_ASSERT(src != nullptr);
-  //TRI_ASSERT(_operations.size() == n);
+bool ModificationExecutorBase::skipEmptyValues(VPackSlice const& values,
+                                               size_t n, AqlItemBlock const* src,
+                                               AqlItemBlock* dst, size_t& dstRow) {
+  // TRI_ASSERT(src != nullptr);
+  // TRI_ASSERT(_operations.size() == n);
 
-  //if (values.isArray() && values.length() > 0) {
+  // if (values.isArray() && values.length() > 0) {
   //  return false;
   //}
 
-  //if (dst == nullptr) {
+  // if (dst == nullptr) {
   //  // fast-track exit. we don't have any output to write, so we
   //  // better try not to copy any of the register values from src to dst
   //  return true;
   //}
 
-  //for (size_t i = 0; i < n; ++i) {
+  // for (size_t i = 0; i < n; ++i) {
   //  if (_operations[i] != IGNORE_SKIP) {
   //    inheritRegisters(src, dst, i, dstRow);
   //    ++dstRow;
@@ -123,11 +143,12 @@ bool ModificationExecutorBase::skipEmptyValues(VPackSlice const& values, size_t 
   return true;
 }
 
-void ModificationExecutorBase::trimResult(std::unique_ptr<AqlItemBlock>& result, size_t numRowsWritten) {
-  //if (result == nullptr) {
+void ModificationExecutorBase::trimResult(std::unique_ptr<AqlItemBlock>& result,
+                                          size_t numRowsWritten) {
+  // if (result == nullptr) {
   //  return;
   //}
-  //if (numRowsWritten == 0) {
+  // if (numRowsWritten == 0) {
   //  AqlItemBlock* block = result.release();
   //  returnBlock(block);
   //} else if (numRowsWritten < result->size()) {
@@ -138,13 +159,11 @@ void ModificationExecutorBase::trimResult(std::unique_ptr<AqlItemBlock>& result,
 /// @brief determine the number of rows in a vector of blocks
 size_t ModificationExecutorBase::countBlocksRows() const {
   size_t count = 0;
-  //for (auto const& it : _blocks) {
+  // for (auto const& it : _blocks) {
   //  count += it->size();
   //}
   return count;
 }
-
-
 
 template <typename Modifier>
 ModificationExecutor<Modifier>::ModificationExecutor(Fetcher& fetcher, Infos& infos)
@@ -154,13 +173,14 @@ template <typename Modifier>
 ModificationExecutor<Modifier>::~ModificationExecutor() = default;
 
 template <typename Modifier>
-std::pair<ExecutionState, typename ModificationExecutor<Modifier>::Stats> ModificationExecutor<Modifier>::produceRow(OutputAqlItemRow& output) {
+std::pair<ExecutionState, typename ModificationExecutor<Modifier>::Stats>
+ModificationExecutor<Modifier>::produceRow(OutputAqlItemRow& output) {
   ExecutionState state;
   ModificationExecutor::Stats stats;
   InputAqlItemRow inputRow = InputAqlItemRow{CreateInvalidInputRowHint{}};
   std::tie(state, inputRow) = _fetcher.fetchBlock();
 
-//  throwIfKilled();  // check if we were aborted
+  //  throwIfKilled();  // check if we were aborted
 
   auto& inVarValue = inputRow.getValue(_infos._inputRegisterId);
 
@@ -181,8 +201,7 @@ std::pair<ExecutionState, typename ModificationExecutor<Modifier>::Stats> Modifi
       THROW_ARANGO_EXCEPTION(TRI_ERROR_DEBUG);
     }
 
-    return Modifier::work(*this, inputRow, output, inVarValue);
-
+    return Modifier::prepareBlock(*this);
   }
 
   if (_infos._doCount) {

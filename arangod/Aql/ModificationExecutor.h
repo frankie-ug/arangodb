@@ -132,6 +132,10 @@ struct ModificationExecutorBase {
 
   ModificationExecutorInfos& _infos;
   Fetcher& _fetcher;
+  std::vector<ModOperationType> _operations;
+  velocypack::Builder _tempBuilder;
+  OperationResult _operationResult;
+  bool _copyBlock;
 
   /// @brief skips over the taken rows if the input value is no
   /// array or empty. updates dstRow in this case and returns true!
@@ -175,12 +179,10 @@ class ModificationExecutor : public ModificationExecutorBase {
    *         if something was written output.hasValue() == true
    */
   std::pair<ExecutionState, Stats> produceRow(OutputAqlItemRow& output);
-  std::vector<ModOperationType> _operations;
-  velocypack::Builder _tempBuilder;
 };
 
 struct Insert {
-  void work(ModificationExecutor<Insert>& executor);
+  void prepareBlock(ModificationExecutor<Insert>& executor);
   VPackBuilder _tempBuilder;
 };
 
