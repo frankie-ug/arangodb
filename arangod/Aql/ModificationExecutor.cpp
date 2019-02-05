@@ -38,7 +38,7 @@ ModificationExecutorInfos::ModificationExecutorInfos(
     RegisterId nrOutputRegisters, std::unordered_set<RegisterId> registersToClear,
     transaction::Methods* trx, OperationOptions options,
     aql::Collection const* aqlCollection, bool producesResults,
-    bool consultAqlWriteFilter, bool doCount, bool returnInheritedResults)
+    bool consultAqlWriteFilter, bool ignoreErros, bool doCount, bool returnInheritedResults)
     : ExecutorInfos(inputRegister.has_value()
                         ? make_shared_unordered_set({inputRegister.get()})
                         : make_shared_unordered_set(),
@@ -51,6 +51,7 @@ ModificationExecutorInfos::ModificationExecutorInfos(
       _aqlCollection(aqlCollection),
       _producesResults(producesResults || !_options.silent),
       _consultAqlWriteFilter(consultAqlWriteFilter),
+      _ignoreErros(ignoreErros),
       _inputRegisterId(inputRegister.get()),
       _outputRegisterId(outputRegisterOld.get()),
       _doCount(doCount),
@@ -59,7 +60,7 @@ ModificationExecutorInfos::ModificationExecutorInfos(
 ModificationExecutorBase::ModificationExecutorBase(Fetcher& fetcher, Infos& infos)
     : _infos(infos), _fetcher(fetcher){};
 
-void Insert::prepareBlock(ModificationExecutor<Insert>& executor) {
+void Insert::prepareBlock(ModificationExecutor<Insert>& executor, ModificationExecutorBase::Stats& stats ) {
   auto& infos = executor._infos;
 
   executor._operations.clear();
@@ -99,8 +100,8 @@ void Insert::prepareBlock(ModificationExecutor<Insert>& executor) {
                                    toInsert, executor._infos._options);
 
   //handle stats
-  //handleBabyResult(opRes.countErrorCodes, static_cast<size_t>(toInsert.length()),
-  //                 ep->_options.ignoreErrors);
+  executor.handleBabyStats(stats, res.countErrorCodes, toInsert.length(),
+                   infos._ignoreErros);
 
   if (res.fail()) {
     THROW_ARANGO_EXCEPTION(res.result);
@@ -113,8 +114,70 @@ void Insert::prepareBlock(ModificationExecutor<Insert>& executor) {
     executor._copyBlock = true;
     return;
   }
+  return;
 }
 
+/// @brief process the result of a data-modification operation
+void ModificationExecutorBase::handleBabyStats(ModificationExecutorBase::Stats& stats, std::unordered_map<int, size_t> const& errorCounter,
+                                         uint64_t numBabies, bool ignoreAllErrors,
+                                         bool ignoreDocumentNotFound) {
+
+  size_t numberBabies = numBabies; // from uint64_t to size_t
+
+  if (errorCounter.empty()) {
+    // update the success counter
+    // All successful.
+    if (_infos._doCount) {
+      stats;
+      //_engine->_stats.writesExecuted += numberBabies;
+    }
+    return;
+  }
+
+  if (ignoreAllErrors) {
+    for (auto const& pair : errorCounter) {
+      // update the ignored counter
+    if (_infos._doCount) {
+        stats;
+        //_engine->_stats.writesIgnored += pair.second;
+      }
+      numberBabies -= pair.second;
+    }
+
+    // update the success counter
+    if (_infos._doCount) {
+      stats;
+      //_engine->_stats.writesExecuted += numberBabies;
+    }
+    return;
+  }
+  auto first = errorCounter.begin();
+  if (ignoreDocumentNotFound && first->first == TRI_ERROR_ARANGO_DOCUMENT_NOT_FOUND) {
+    if (errorCounter.size() == 1) {
+      // We only have Document not found. Fix statistics and ignore
+      // update the ignored counter
+      if (_infos._doCount) {
+        stats;
+        //_engine->_stats.writesIgnored += first->second;
+      }
+      numberBabies -= first->second;
+      // update the success counter
+      if (_infos._doCount) {
+        stats;
+        //_engine->_stats.writesExecuted += numberBabies;
+      }
+      return;
+    }
+
+    // Sorry we have other errors as well.
+    // No point in fixing statistics.
+    // Throw other error.
+    ++first;
+    TRI_ASSERT(first != errorCounter.end());
+  }
+
+  THROW_ARANGO_EXCEPTION(first->first);
+}
 /// @brief skips over the taken rows if the input value is no
 /// array or empty. updates dstRow in this case and returns true!
 bool ModificationExecutorBase::skipEmptyValues(VPackSlice const& values,
@@ -141,19 +204,6 @@ bool ModificationExecutorBase::skipEmptyValues(VPackSlice const& values,
   //}
 
   return true;
-}
-
-void ModificationExecutorBase::trimResult(std::unique_ptr<AqlItemBlock>& result,
-                                          size_t numRowsWritten) {
-  // if (result == nullptr) {
-  //  return;
-  //}
-  // if (numRowsWritten == 0) {
-  //  AqlItemBlock* block = result.release();
-  //  returnBlock(block);
-  //} else if (numRowsWritten < result->size()) {
-  //  result->shrink(numRowsWritten);
-  //}
 }
 
 /// @brief determine the number of rows in a vector of blocks
@@ -201,7 +251,7 @@ ModificationExecutor<Modifier>::produceRow(OutputAqlItemRow& output) {
       THROW_ARANGO_EXCEPTION(TRI_ERROR_DEBUG);
     }
 
-    return Modifier::prepareBlock(*this);
+    return Modifier::prepareBlock(*this, stats);
   }
 
   if (_infos._doCount) {

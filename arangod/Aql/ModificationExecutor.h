@@ -85,6 +85,7 @@ class ModificationExecutorInfos : public ExecutorInfos {
                             aql::Collection const* _aqlCollection,
                             bool producesResults,
                             bool consultAqlWriteFilter,
+                            bool ignoreErros,
                             bool doCount, bool returnInheritedResults);
 
 
@@ -100,6 +101,7 @@ class ModificationExecutorInfos : public ExecutorInfos {
   aql::Collection const* _aqlCollection;
   bool _producesResults;
   bool _consultAqlWriteFilter;
+  bool _ignoreErros;
   Variable const* _inVariable;
   bool _count;
   RegisterId _inputRegisterId;
@@ -115,6 +117,7 @@ struct ModificationExecutorBase {
   };
   using Infos = ModificationExecutorInfos;
   using Fetcher = SingleBlockFetcher;//<Properties::allowsBlockPassthrough>;
+  using Stats = CountStats;
 
   ModificationExecutorBase(Fetcher&, Infos&);
 
@@ -142,9 +145,6 @@ struct ModificationExecutorBase {
   bool skipEmptyValues(VPackSlice const& values, size_t n, AqlItemBlock const* src,
                        AqlItemBlock* dst, size_t& dstRow);
 
-  /// @brief processes the final result
-  void trimResult(std::unique_ptr<AqlItemBlock>& result, size_t numRowsWritten);
-
   /// @brief extract a key from the AqlValue passed
   int extractKey(AqlValue const&, std::string& key);
 
@@ -154,7 +154,8 @@ struct ModificationExecutorBase {
   /// @brief process the result of a data-modification operation
   void handleResult(int, bool, std::string const* errorMessage = nullptr);
 
-  void handleBabyResult(std::unordered_map<int, size_t> const&, size_t,
+  //done
+  void handleBabyStats(Stats&, std::unordered_map<int, size_t> const&, uint64_t,
                         bool ignoreAllErrors, bool ignoreDocumentNotFound = false);
 
   /// @brief determine the number of rows in a vector of blocks
@@ -167,7 +168,6 @@ class ModificationExecutor : public ModificationExecutorBase {
 
  public:
   using Modification = Modifier;
-  using Stats = CountStats;
 
   ModificationExecutor(Fetcher&, Infos&);
   ~ModificationExecutor();
@@ -182,7 +182,7 @@ class ModificationExecutor : public ModificationExecutorBase {
 };
 
 struct Insert {
-  void prepareBlock(ModificationExecutor<Insert>& executor);
+  void prepareBlock(ModificationExecutor<Insert>& executor, ModificationExecutorBase::Stats&);
   VPackBuilder _tempBuilder;
 };
 
