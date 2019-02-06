@@ -117,7 +117,7 @@ struct ModificationExecutorBase {
   };
   using Infos = ModificationExecutorInfos;
   using Fetcher = SingleBlockFetcher;//<Properties::allowsBlockPassthrough>;
-  using Stats = CountStats;
+  using Stats = ModificationStats;
 
   ModificationExecutorBase(Fetcher&, Infos&);
 

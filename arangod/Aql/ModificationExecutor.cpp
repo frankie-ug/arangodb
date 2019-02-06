@@ -128,8 +128,7 @@ void ModificationExecutorBase::handleBabyStats(ModificationExecutorBase::Stats& 
     // update the success counter
     // All successful.
     if (_infos._doCount) {
-      stats;
-      //_engine->_stats.writesExecuted += numberBabies;
+      stats.addWritesExecuted(numberBabies);
     }
     return;
   }
@@ -138,16 +137,14 @@ void ModificationExecutorBase::handleBabyStats(ModificationExecutorBase::Stats& 
     for (auto const& pair : errorCounter) {
       // update the ignored counter
     if (_infos._doCount) {
-        stats;
-        //_engine->_stats.writesIgnored += pair.second;
+        stats.addWritesIgnored(pair.second);
       }
       numberBabies -= pair.second;
     }
 
     // update the success counter
     if (_infos._doCount) {
-      stats;
-      //_engine->_stats.writesExecuted += numberBabies;
+      stats.addWritesExecuted(numberBabies);
     }
     return;
   }
@@ -157,14 +154,12 @@ void ModificationExecutorBase::handleBabyStats(ModificationExecutorBase::Stats& 
       // We only have Document not found. Fix statistics and ignore
       // update the ignored counter
       if (_infos._doCount) {
-        stats;
-        //_engine->_stats.writesIgnored += first->second;
+        stats.addWritesIgnored(first->second);
       }
       numberBabies -= first->second;
       // update the success counter
       if (_infos._doCount) {
-        stats;
-        //_engine->_stats.writesExecuted += numberBabies;
+        stats.addWritesExecuted(numberBabies);
       }
       return;
     }
@@ -255,7 +250,7 @@ ModificationExecutor<Modifier>::produceRow(OutputAqlItemRow& output) {
   }
 
   if (_infos._doCount) {
-    stats.incrCounted();
+    stats; // .incrCounted();
   }
   return {state, std::move(stats)};
 }
